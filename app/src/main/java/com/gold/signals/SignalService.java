@@ -22,8 +22,8 @@ public class SignalService extends Service {
         nm.createNotificationChannel(new NotificationChannel("bg", "Surveillance", NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(new NotificationChannel("signals", "Signaux", NotificationManager.IMPORTANCE_HIGH));
         Notification n = new Notification.Builder(this, "bg")
-                .setContentTitle("Gold Signals actif")
-                .setContentText("Surveillance XAUUSD en cours")
+                .setContentTitle("EURUSD Signals actif")
+                .setContentText("Surveillance EUR/USD en cours")
                 .setSmallIcon(android.R.drawable.ic_dialog_info).build();
         if (Build.VERSION.SDK_INT >= 29)
             startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
@@ -44,7 +44,7 @@ public class SignalService extends Service {
     }
 
     private void check() throws Exception {
-        URL u = new URL("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=15m&range=5d");
+        URL u = new URL("https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=5m&range=5d");
         HttpURLConnection c = (HttpURLConnection) u.openConnection();
         c.setRequestProperty("User-Agent", "Mozilla/5.0");
         c.setConnectTimeout(15000);
@@ -67,12 +67,12 @@ public class SignalService extends Service {
             C.add(cl.getDouble(k)); H.add(hi.getDouble(k)); L.add(lo.getDouble(k)); T.add(ts.getLong(k));
         }
         int n = C.size();
-        if (n < 60) return;
+        if (n < 210) return;
 
-        double[] e20 = ema(C, 20), e50 = ema(C, 50);
+        double[] e20 = ema(C, 20), e50 = ema(C, 50), e200 = ema(C, 200);
         int a = n - 2, p = n - 3;
-        boolean buy = e20[p] <= e50[p] && e20[a] > e50[a];
-        boolean sell = e20[p] >= e50[p] && e20[a] < e50[a];
+        boolean buy = e20[p] <= e50[p] && e20[a] > e50[a] && C.get(a) > e200[a];
+        boolean sell = e20[p] >= e50[p] && e20[a] < e50[a] && C.get(a) < e200[a];
         if (!buy && !sell) return;
         if (T.get(a) == lastTs) return;
         lastTs = T.get(a);
@@ -86,8 +86,9 @@ public class SignalService extends Service {
         double px = C.get(a);
         double sl = buy ? px - 1.5 * atr : px + 1.5 * atr;
         double tp = buy ? px + 3 * atr : px - 3 * atr;
-        String txt = String.format(Locale.US, "@ %.2f | SL %.2f | TP %.2f", px, sl, tp);
-        notify(buy ? "ACHAT XAUUSD" : "VENTE XAUUSD", txt);
+        double slPips = 1.5 * atr / 0.0001;
+        String txt = String.format(Locale.US, "@ %.5f | SL %.5f | TP %.5f | risque %.1f pips", px, sl, tp, slPips);
+        notify(buy ? "ACHAT EURUSD" : "VENTE EURUSD", txt);
     }
 
     private double[] ema(List<Double> v, int per) {
